@@ -113,15 +113,6 @@ kill $MONITOR_PID
 ``` -->
 
 <br>
-
-<!-- ```bash
-# multi-channel monitoring: separate configs for different use cases
-crtmon -config ~/.config/crtmon/critical.yaml -notify=discord &
-crtmon -config ~/.config/crtmon/bugbounty.yaml -notify=telegram &
-crtmon -config ~/.config/crtmon/personal.yaml -notify=both &
-``` -->
-
-<br>
 <br>
 
 - **If you see no results or errors**
