@@ -71,42 +71,47 @@ func (n *notificationBuffer) flush(target string) {
 
 func (n *notificationBuffer) send(target string, domains []string) {
 	if notifyDiscord && webhookURL != "" {
-		payload := buildDiscordPayload(target, domains)
-
-		jsonData, err := json.Marshal(payload)
-		if err != nil {
-			logger.Error("failed to marshal payload", "error", err)
-		} else {
-			for attempt := 0; attempt < maxRetries; attempt++ {
-				resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
-				if err != nil {
-					logger.Error("failed to send notification", "error", err)
-					return
-				}
-
-				switch resp.StatusCode {
-				case http.StatusOK, http.StatusNoContent:
-					resp.Body.Close()
-					return
-				case http.StatusTooManyRequests:
-					resp.Body.Close()
-					logger.Warn("rate limited, waiting", "attempt", attempt+1)
-					time.Sleep(rateLimitWait * time.Duration(attempt+1))
-					continue
-				default:
-					resp.Body.Close()
-					logger.Warn("webhook error", "status", resp.StatusCode)
-					return
-				}
-			}
-
-			logger.Error("failed to send after retries", "target", target)
-		}
+		n.sendDiscord(target, domains)
 	}
 
 	if notifyTelegram {
 		sendToTelegram(target, domains)
 	}
+}
+
+func (n *notificationBuffer) sendDiscord(target string, domains []string) {
+	payload := buildDiscordPayload(target, domains)
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		logger.Error("failed to marshal discord payload", "error", err)
+		return
+	}
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
+		if err != nil {
+			logger.Error("failed to send discord notification", "error", err)
+			return
+		}
+
+		switch resp.StatusCode {
+		case http.StatusOK, http.StatusNoContent:
+			resp.Body.Close()
+			return
+		case http.StatusTooManyRequests:
+			resp.Body.Close()
+			logger.Warn("discord rate limited, waiting", "attempt", attempt+1)
+			time.Sleep(rateLimitWait * time.Duration(attempt+1))
+			continue
+		default:
+			resp.Body.Close()
+			logger.Warn("discord webhook error", "status", resp.StatusCode)
+			return
+		}
+	}
+
+	logger.Error("failed to send discord after retries", "target", target)
 }
 
 func sendToTelegram(target string, domains []string) {

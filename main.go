@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-const version = "1.0.0"
+const version = "1.1.0"
 
 var (
 	target      = flag.String("target", "", "target domain to monitor")
