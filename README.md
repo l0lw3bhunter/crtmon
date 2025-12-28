@@ -1,29 +1,38 @@
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/39d6e99e-8281-4f48-811b-14478f25be99" alt="crtmon" width="600">
+  <img width="500" height="200" alt="credit" src="https://github.com/user-attachments/assets/23cc637e-0294-4eef-bc8e-ba8515b6f689" />
 </p>
 
-**crtmon** is a lightweight Certificate Transparency monitoring tool that discovers new subdomains in real time as soon as they appear.
+</br>
+</br>
 
+> [!NOTE]
+> **crtmon** is a lightweight Certificate Transparency monitoring tool that discovers new subdomains in real time as soon as they appear.
 
-##  Features
+</br>
+</br>
+
+###  Features
 
 * Real-time subdomain discovery from CT logs
 * Discord and Telegram notifications
 * Smart batching with built-in rate limiting
 * Supports single targets, files, and stdin
 
----
+</br>
+</br>
 
-##  Installation
+###  Installation
 
 ```bash
 go install github.com/coffinxp/crtmon@latest
 ```
 
----
+</br>
+</br>
 
-##  Configuration
+###  Configuration
 
 Run `crtmon` once to generate the default configuration template:
 
@@ -41,9 +50,10 @@ Edit the generated file:
   <img src="https://github.com/user-attachments/assets/183cb7ab-6e52-40c8-9362-118bf97a0c84" alt="provider config" width="800">
 </p>
 
----
+</br>
+</br>
 
-##  Flags
+###  Flags
 
 ```text
 -target    target domain, file path, or '-' for stdin
@@ -58,74 +68,77 @@ Edit the generated file:
   <img src="https://github.com/user-attachments/assets/1209cd79-b52d-4aef-84c6-bccfc4fa3837" alt="help output" width="1000">
 </p>
 
----
+</br>
+</br>
 
-##  Usage Examples
+###  Usage Examples
 
-### Monitor a single target
+- ###### Monitor a single target
 
 ```bash
 crtmon -target github.com
 ```
 
-### Monitor targets from config file
+- ###### Monitor targets from config file
 
 ```bash
 crtmon # config: ~/.config/crtmon/provider.yaml
 ```
 
-### Monitor multiple targets from a file
+- ###### Monitor multiple targets from a file
 
 ```bash
 crtmon -target targets.txt
 ```
 
-### Pipe targets via stdin
+- ###### Pipe targets via stdin
 
 ```bash
 cat domains.txt | crtmon -target -
 ```
 
-### Use Telegram notifications only
+- ###### Use Telegram notifications only
 
 ```bash
 crtmon -target github.com -notify=telegram
 ```
 
-### Dual notifications (Discord + Telegram)
+- ###### Dual notifications (Discord + Telegram)
 
 ```bash
 echo -e "tesla.com\nuber.com\nmeta.com" | crtmon -target - -notify=both
 ```
 
-### Start on system reboot (cron)
+- ###### Start on system reboot (cron)
 
 ```bash
 echo "@reboot nohup crtmon -target github.com > /tmp/crtmon.log 2>&1 &" | crontab -
 ```
 
----
+</br>
+</br>
 
-## Troubleshooting
+> [!TIP]
+>
+> **If you see no output or errors:**
+>
+> - Verify your targets are valid  
+> - Double check notification credentials  
+> - Ensure Docker is installed and running  
+> - Check your internet connection  
+> - Run `crtmon -h` for guidance
 
-If you see no output or errors:
 
-* Verify your targets are valid
-* Double check notification credentials
-* Ensure Docker is installed and running
-* Check your internet connection
-* Run `crtmon -h` for guidance
+</br>
+</br>
 
----
-
-## TO-DO
+### TO-DO
 
 * [ ] Separate notification channels per target
 
----
+</br>
+</br>
 
 > [!CAUTION]
 > **Use crtmon only on assets you own or have permission to test.
 The authors are not responsible for misuse..**
-
----
