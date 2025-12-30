@@ -99,13 +99,13 @@ cat domains.txt | crtmon -target -
 - ###### Use Telegram notifications only
 
 ```bash
-crtmon -target github.com -notify=telegram
+crtmon -target github.com -notify telegram
 ```
 
 - ###### Dual notifications (Discord + Telegram)
 
 ```bash
-echo -e "tesla.com\nuber.com\nmeta.com" | crtmon -target - -notify=both
+echo -e "tesla.com\nuber.com\nmeta.com" | crtmon -target - -notify both
 ```
 
 - ###### Start on system reboot (cron)
