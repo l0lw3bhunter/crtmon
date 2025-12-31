@@ -280,8 +280,13 @@ func loadTargetsFromStdin() ([]string, error) {
 
 func processEntry(entry CertEntry) {
 	for _, domain := range entry.Domains {
+		// Normalize domain and target to lowercase without trailing dots
+		d := strings.ToLower(strings.TrimSuffix(domain, "."))
 		for _, target := range targets {
-			if strings.Contains(strings.ToLower(domain), strings.ToLower(target)) {
+			t := strings.ToLower(strings.TrimSuffix(target, "."))
+
+			// Match only exact target or real subdomains
+			if d == t || strings.HasSuffix(d, "."+t) {
 				logger.Info("new subdomain", "domain", domain, "target", target)
 				if notifyDiscord || notifyTelegram {
 					go sendToDiscord(domain, target)
