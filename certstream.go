@@ -62,6 +62,10 @@ func (m *CTMonitor) run() {
 
 	logger.Info("fetched CT log list", "usable_logs", len(logs))
 
+	// Track initial log health
+	st := GetStatsTracker()
+	st.RecordCTLogStatus(len(logs), 0)
+
 	for _, logInfo := range logs {
 		m.wg.Add(1)
 		go m.monitorLog(logInfo)
@@ -110,6 +114,10 @@ func (m *CTMonitor) monitorLog(logInfo *loglist3.Log) {
 	logClient, err := client.New(logURL, httpClient, jsonclient.Options{})
 	if err != nil {
 		logger.Warn("failed to create log client", "log", logInfo.Description, "error", err)
+		// Update disconnected count
+		st := GetStatsTracker()
+		active, disconnected := st.GetCTLogHealth()
+		st.RecordCTLogStatus(active-1, disconnected+1)
 		return
 	}
 

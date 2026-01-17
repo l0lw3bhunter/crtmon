@@ -1,0 +1,101 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.18', '1.19', '1.20', '1.21']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go-version }}
+    
+    - name: Build
+      run: go build -v ./...
+    
+    - name: Run tests
+      run: go test -v ./...
+    
+    - name: Build binary
+      run: |
+        mkdir -p dist
+        go build -o dist/crtmon
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: crtmon-${{ matrix.go-version }}
+        path: dist/crtmon
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.21
+    
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run Gosec Security Scanner
+      uses: securego/gosec@master
+      with:
+        args: './...'
+
+  release:
+    needs: [build, lint, security]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.21
+    
+    - name: Build multi-platform binaries
+      run: |
+        mkdir -p dist
+        
+        # Linux
+        GOOS=linux GOARCH=amd64 go build -o dist/crtmon-linux-amd64
+        GOOS=linux GOARCH=arm64 go build -o dist/crtmon-linux-arm64
+        
+        # macOS
+        GOOS=darwin GOARCH=amd64 go build -o dist/crtmon-darwin-amd64
+        GOOS=darwin GOARCH=arm64 go build -o dist/crtmon-darwin-arm64
+        
+        # Windows
+        GOOS=windows GOARCH=amd64 go build -o dist/crtmon-windows-amd64.exe
+        
+        ls -lh dist/
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

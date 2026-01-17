@@ -1,0 +1,74 @@
+# Binaries
+crtmon
+crtmon.backup
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+
+# Build artifacts
+dist/
+build/
+bin/
+
+# Local development
+*.local
+*.dev
+.env
+.env.local
+
+# Configuration files (local dev only)
+provider.yaml.local
+provider.yaml.dev
+
+# Logs
+*.log
+logs/
+
+# Screenshots and documentation artifacts
+shots/
+*.png
+*.jpg
+*.gif
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Git
+.git/
+
+# Backups
+*.backup
+*.bak
+
+# Node modules (if using any frontend build tools)
+node_modules/
+npm-debug.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class

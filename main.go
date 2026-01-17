@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/charmbracelet/log"
 )
@@ -32,6 +33,8 @@ var (
 	webhookURL     string
 	telegramToken  string
 	telegramChatID string
+	startTime      = time.Now() // Track uptime
+	globalConfig   *Config      // Store config globally for admin panel
 	notifyDiscord  bool
 	notifyTelegram bool
 )
@@ -107,12 +110,65 @@ func main() {
 
 		telegramToken = strings.TrimSpace(cfg.TelegramBotToken)
 		telegramChatID = strings.TrimSpace(cfg.TelegramChatID)
+
+		// Initialize enumeration configuration
+		if cfg.Enumeration.EnableEnum {
+			SetEnumConfig(&cfg.Enumeration)
+			logger.Info("enumeration enabled", "feroxbuster", cfg.Enumeration.FeroxbusterPath, "puredns", cfg.Enumeration.PurednsPath)
+		}
+
+		// Initialize webhook configuration
+		if cfg.Webhooks.NewDomains != "" || cfg.Webhooks.SubdomainScans != "" || cfg.Webhooks.DirectoryScans != "" || cfg.Webhooks.DailySummary != "" {
+			SetWebhookConfig(&cfg.Webhooks)
+			logger.Info("webhooks configured",
+				"new_domains", cfg.Webhooks.NewDomains != "",
+				"subdomain_scans", cfg.Webhooks.SubdomainScans != "",
+				"directory_scans", cfg.Webhooks.DirectoryScans != "",
+				"daily_summary", cfg.Webhooks.DailySummary != "",
+			)
+		}
+
+		// Initialize admin panel
+		if cfg.AdminPanel.Enabled {
+			SetAdminConfig(&cfg.AdminPanel)
+			configDir, _ := getConfigDir()
+			if err := StartAdminServer(configDir); err != nil {
+				logger.Error("failed to start admin panel", "error", err)
+			}
+		}
+
+		// Store config globally for admin panel
+		globalConfig = cfg
 	} else {
 		webhookURL = ""
 		telegramToken = ""
 		telegramChatID = ""
 		logger.Warn("no configuration file found. notifications will be disabled unless providers are configured")
 	}
+
+	// Initialize domain tracker
+	configDir, _ := getConfigDir()
+	if err := InitDomainTracker(configDir); err != nil {
+		logger.Warn("failed to initialize domain tracker", "error", err)
+	}
+
+	// Initialize SNI manager
+	sniPath := fmt.Sprintf("%s/sni.txt", configDir)
+	InitSNIManager(sniPath)
+	logger.Info("SNI manager initialized", "path", sniPath)
+
+	// Start daily summary scheduler
+	StartDailySummaryScheduler()
+
+	// Periodically clear old tracking entries (once per day)
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			dt := GetDomainTracker()
+			dt.ClearOldEntries(30 * 24 * time.Hour)
+		}
+	}()
 
 	stdinAvailable := false
 	if fi, err := os.Stdin.Stat(); err == nil && (fi.Mode()&os.ModeCharDevice) == 0 {
@@ -288,6 +344,37 @@ func processEntry(entry CertEntry) {
 			// Match only exact target or real subdomains
 			if d == t || strings.HasSuffix(d, "."+t) {
 				logger.Info("new subdomain", "domain", domain, "target", target)
+
+				// Track discovery for this target
+				st := GetStatsTracker()
+				st.RecordDiscovery(target)
+
+				// Check if domain should be notified (deduplication)
+				dt := GetDomainTracker()
+				if !dt.ShouldNotifyDomain(domain) {
+					hitCount := dt.GetDomainHitCount(domain)
+					logger.Debug("domain already notified in last 24h", "domain", domain, "hits", hitCount)
+					// Record issuer even if not notifying
+					if entry.Issuer != "" {
+						dt.RecordDomainIssuer(domain, entry.Issuer)
+					}
+					break
+				}
+
+				// Record certificate issuer for risk tracking
+				if entry.Issuer != "" {
+					dt.RecordDomainIssuer(domain, entry.Issuer)
+				}
+
+				// Check DNS resolution before notifying
+				if !ResolveDomain(domain) {
+					logger.Debug("domain does not resolve", "domain", domain)
+					dt.RecordDomainResolution(domain, false)
+					break
+				}
+
+				dt.RecordDomainResolution(domain, true)
+
 				if notifyDiscord || notifyTelegram {
 					go sendToDiscord(domain, target)
 				}

@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/log v0.3.1
 	github.com/google/certificate-transparency-go v1.3.2
 	github.com/rhysd/go-github-selfupdate v1.2.3
+	golang.org/x/crypto v0.42.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -30,7 +31,6 @@ require (
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tcnksm/go-gitconfig v0.1.2 // indirect
 	github.com/ulikunitz/xz v0.5.9 // indirect
-	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
 	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect

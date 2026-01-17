@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -77,6 +78,17 @@ func (n *notificationBuffer) send(target string, domains []string) {
 	if notifyTelegram {
 		sendToTelegram(target, domains)
 	}
+
+	// Trigger enumeration if enabled
+	enumMutex.Lock()
+	enumEnabled := enumConfig != nil && enumConfig.EnableEnum
+	enumMutex.Unlock()
+
+	if enumEnabled {
+		for _, domain := range domains {
+			go triggerEnumeration(domain, target)
+		}
+	}
 }
 
 func (n *notificationBuffer) sendDiscord(target string, domains []string) {
@@ -95,10 +107,28 @@ func (n *notificationBuffer) sendDiscord(target string, domains []string) {
 			return
 		}
 
-		switch resp.StatusCode {
-		case http.StatusOK, http.StatusNoContent:
-			resp.Body.Close()
-			return
+		   switch resp.StatusCode {
+		   case http.StatusOK, http.StatusNoContent:
+			   resp.Body.Close()
+
+			   // Send to new domains webhook if configured
+			   if GetWebhookConfig() != nil && GetWebhookConfig().NewDomains != "" {
+				   for _, domain := range domains {
+					   sendNewDomainToWebhook(domain, extractRootDomain(domain))
+				   }
+			   }
+
+			   // Trigger enumeration after successful send (if enabled)
+			   enumMutex.Lock()
+			   enumEnabled := enumConfig != nil && enumConfig.EnableEnum
+			   enumMutex.Unlock()
+
+			   if enumEnabled {
+				   for _, domain := range domains {
+					   go triggerEnumeration(domain, target)
+				   }
+			   }
+			   return
 		case http.StatusTooManyRequests:
 			resp.Body.Close()
 			logger.Warn("discord rate limited, waiting", "attempt", attempt+1)
@@ -161,4 +191,85 @@ func sendToTelegram(target string, domains []string) {
 	}
 
 	logger.Error("failed to send telegram after retries", "target", target)
+}
+
+// triggerEnumeration starts enumeration based on domain type
+func triggerEnumeration(domain, target string) {
+	if IsWildcardDomain(domain) {
+		// Wildcard domain - use puredns
+		baseDomain := ExtractBaseDomain(domain)
+		logger.Info("wildcard detected, starting puredns", "domain", baseDomain)
+		_, err := RunPuredns(baseDomain, target)
+		if err != nil {
+			logger.Error("failed to start puredns", "domain", baseDomain, "error", err)
+		}
+	} else {
+		// Regular subdomain - use feroxbuster
+		logger.Info("starting feroxbuster", "domain", domain)
+		_, err := RunFeroxbuster(domain, target)
+		if err != nil {
+			logger.Error("failed to start feroxbuster", "domain", domain, "error", err)
+		}
+	}
+}
+// sendSNIDiscoveryNotification sends a Discord notification for SNI discoveries
+func sendSNIDiscoveryNotification(target string, newDomains []string) {
+	if !notifyDiscord || webhookURL == "" {
+		return
+	}
+
+	// Group by wildcard vs regular domains
+	wildcards := []string{}
+	regular := []string{}
+
+	for _, domain := range newDomains {
+		if strings.HasPrefix(domain, "*.") {
+			wildcards = append(wildcards, domain)
+		} else {
+			regular = append(regular, domain)
+		}
+	}
+
+	description := fmt.Sprintf("**Target**: %s\n\n", target)
+
+	if len(wildcards) > 0 {
+		description += fmt.Sprintf("**Wildcards** (%d):\n```\n%s\n```\n\n", 
+			len(wildcards), strings.Join(wildcards, "\n"))
+	}
+
+	if len(regular) > 0 {
+		description += fmt.Sprintf("**Regular Domains** (%d):\n```\n%s\n```\n\n",
+			len(regular), strings.Join(regular, "\n"))
+	}
+
+	description += fmt.Sprintf("*Total: %d new domains found*", len(newDomains))
+
+	payload := map[string]interface{}{
+		"tts": false,
+		"embeds": []map[string]interface{}{
+			{
+				"title":       "🔍 SNI File Updated - New Domains Discovered",
+				"description": description,
+				"color":       9764863, // Purple
+				"timestamp":   time.Now().Format(time.RFC3339),
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		logger.Error("failed to marshal SNI notification", "error", err)
+		return
+	}
+
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		logger.Error("failed to send SNI notification", "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		logger.Error("discord returned error for SNI notification", "status", resp.StatusCode)
+	}
 }
