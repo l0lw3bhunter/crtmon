@@ -72,32 +72,45 @@ GITHUB_REPO=git@github.com:your-org/crtmon.git sudo ./install.sh
 - ✅ Configure log rotation
 - ✅ Output admin panel URL and credentials
 
-### Step 4: Configure
+### Step 4: Configure via Admin Panel
 
-Edit the configuration:
+The simplest way to configure crtmon is through the web admin panel:
+
+```
+http://your-vps-ip:8080
+```
+
+After installation, you'll see the admin credentials printed. Use them to log in.
+
+**Via Admin Panel (Recommended):**
+1. Click "Webhooks" tab
+2. Enter Discord webhook URL (get from Discord server settings)
+3. Or enter Telegram bot token and chat ID (get from BotFather)
+4. Click "Save Webhooks"
+5. Click "Test" to verify your webhook works
+
+**Or Configure via YAML (Advanced):**
+
+If you prefer manual configuration:
 
 ```bash
 sudo nano /home/crtmon/.config/crtmon/provider.yaml
 ```
 
-Add Discord webhook (get from Discord server settings):
+Add Discord webhook:
 
 ```yaml
-discord:
-  webhook_url: https://discordapp.com/api/webhooks/YOUR/WEBHOOK
-  enabled: true
+webhook: https://discordapp.com/api/webhooks/YOUR/WEBHOOK
 ```
 
-Or Telegram (get from BotFather):
+Add Telegram (get from BotFather):
 
 ```yaml
-telegram:
-  bot_token: YOUR_BOT_TOKEN
-  chat_id: YOUR_CHAT_ID
-  enabled: true
+telegram_bot_token: YOUR_BOT_TOKEN
+telegram_chat_id: YOUR_CHAT_ID
 ```
 
-Restart service:
+Then restart:
 
 ```bash
 sudo systemctl restart crtmon
@@ -117,11 +130,17 @@ View logs in real-time:
 sudo journalctl -u crtmon -f
 ```
 
-Access admin panel (credentials shown after install):
+Admin panel will be available at:
 
 ```
 http://your-vps-ip:8080
 ```
+
+Use it to:
+- Add/remove target domains
+- Configure webhooks
+- View discovered certificates and domains
+- Manage blacklisted domains
 
 ## Updating
 
@@ -194,45 +213,52 @@ Open http://localhost:8080 in browser.
 
 ## Configuration
 
-Configuration file: `/home/crtmon/.config/crtmon/provider.yaml`
+### Configuration File Location
 
-Edit with:
+```
+~/.config/crtmon/provider.yaml
+```
+
+### Recommended: Use Admin Panel
+
+The easiest way to configure crtmon is through the web admin panel at `http://your-vps-ip:8080`:
+
+- Add/remove target domains
+- Configure Discord and Telegram webhooks
+- Test webhook connectivity
+- Manage domain blacklists
+- View configuration details
+
+### Manual Configuration (Advanced)
+
+If you prefer to edit the YAML file directly:
 
 ```bash
 sudo nano /home/crtmon/.config/crtmon/provider.yaml
 ```
 
-### Required Settings
+#### Basic Settings
 
 ```yaml
-# Admin panel credentials
-admin:
-  username: admin
-  password: your-secure-password
-  port: 8080
-
-# Certificate monitoring
-certstream:
-  enabled: true
-
-# Discord notifications (optional)
-discord:
-  webhook_url: https://discordapp.com/api/webhooks/...
-  enabled: true
-
-# Telegram notifications (optional)
-telegram:
-  bot_token: YOUR_BOT_TOKEN
-  chat_id: YOUR_CHAT_ID
-  enabled: true
-
 # Target domains to monitor
 targets: 
   - example.com
   - target.org
+
+# Discord webhook (optional - or configure via admin panel)
+webhook: https://discordapp.com/api/webhooks/YOUR/WEBHOOK
+
+# Telegram (optional - or configure via admin panel)
+telegram_bot_token: YOUR_BOT_TOKEN
+telegram_chat_id: YOUR_CHAT_ID
+
+# Admin panel configuration
+admin_panel:
+  enabled: true
+  port: 8080
 ```
 
-### Advanced Settings
+#### Advanced Settings
 
 ```yaml
 # SNI IP ranges (monthly refresh)
@@ -246,26 +272,19 @@ sni:
     - microsoft
     - oracle
 
-# Enumeration tools
-feroxbuster:
-  enabled: true
-  wordlist: /usr/share/wordlists/dirb/common.txt
-  threads: 50
-  timeout: 5
-
-puredns:
-  enabled: true
-  wordlist: /usr/share/wordlists/dns/all.txt
-  threads: 100
-  timeout: 3
-
-# Risk scoring
-risk_scoring:
-  enabled: true
-  min_score: 5
+# Enumeration tools (if enabled in UI)
+enumeration:
+  enable_enum: false
+  feroxbuster_path: /usr/bin/feroxbuster
+  puredns_path: /usr/bin/puredns
+  dir_wordlist: /usr/share/wordlists/dirb/common.txt
+  dns_wordlist: /usr/share/wordlists/dns/all.txt
+  resolvers_file: /usr/share/wordlists/resolvers.txt
+  rate_limit: 15
+  scan_timeout: 3600
 ```
 
-After editing configuration, restart:
+After editing YAML, restart the service:
 
 ```bash
 sudo systemctl restart crtmon
@@ -273,28 +292,77 @@ sudo systemctl restart crtmon
 
 ## Admin Panel
 
-Access at `http://your-vps-ip:8080`
+Access the web interface at `http://your-vps-ip:8080`
+
+### Tabs & Features
+
+**Dashboard**
+- Real-time statistics
+- Recent discoveries
+- System status
+
+**Targets**
+- Add new domain targets
+- Remove targets
+- View all monitored domains
+
+**Domains**
+- View all discovered subdomains
+- Filter by target
+- See discovery timestamps
+
+**Blacklist**
+- Add domains to ignore
+- Remove from blacklist
+- Prevent false positives
+
+**Configuration**
+- View current settings
+- Review active targets
+
+**Webhooks**
+- Configure Discord webhook
+- Configure Telegram bot
+- Set multiple webhook URLs for different event types (new domains, subdomain scans, directory scans, daily summary)
+- Test webhook connectivity
 
 ### Add Target Domain
 
-1. Click "Add Target"
-2. Enter domain name (e.g., `example.com`)
-3. Click "Add"
-4. Service will restart automatically
-5. Monitor will begin certificate collection for this domain
+1. Click "Targets" tab
+2. Click "Add Target"
+3. Enter domain name (e.g., `example.com`)
+4. Click "Add"
+5. Service will restart automatically
+6. Certificate monitoring begins immediately
 
 ### Remove Target Domain
 
-1. Find domain in list
-2. Click "Remove"
-3. Service will restart automatically
+1. Click "Targets" tab
+2. Find the domain in the list
+3. Click "Remove" button
+4. Service will restart automatically
+5. Monitoring for that domain stops
 
-### View Results
+### Configure Webhooks
 
-- **Certificates**: Latest certificates discovered
-- **Domains**: Enumerated subdomains
-- **Alerts**: All Discord/Telegram notifications sent
-- **Logs**: System activity and errors
+1. Click "Webhooks" tab
+2. Enter webhook URLs:
+   - **Main Webhook**: Primary Discord webhook
+   - **Telegram Bot**: Telegram bot token
+   - **Telegram Chat**: Telegram chat ID
+   - **New Domains**: Specific webhook for new discoveries
+   - **Subdomain Scans**: Webhook for enumeration results
+   - **Directory Scans**: Webhook for directory scan results
+   - **Daily Summary**: Webhook for daily reports
+3. Click "Save Webhooks"
+4. Click "Test [type]" to verify connectivity
+
+### View Discovered Data
+
+- **Dashboard**: Overview of recent discoveries and statistics
+- **Domains**: Complete list of discovered subdomains with timestamps
+- **Blacklist**: Manage domains to ignore (prevents false alerts)
+```
 
 ## Troubleshooting
 
@@ -348,40 +416,39 @@ sudo systemctl restart crtmon
 
 ### No notifications arriving
 
-1. Check webhook URL is correct:
+1. Verify webhook configuration in Admin Panel:
+   - Click "Webhooks" tab
+   - Confirm URLs are entered correctly
+   - Click "Test [type]" to test connectivity
+
+2. Check logs for errors:
+   ```bash
+   sudo journalctl -u crtmon -f | grep -i webhook
+   ```
+
+3. If using YAML configuration, verify the config file:
    ```bash
    sudo nano /home/crtmon/.config/crtmon/provider.yaml
    ```
 
-2. Test webhook manually:
+### Certificates not being collected
+
+1. Verify targets are added in Admin Panel:
+   - Open http://your-vps-ip:8080
+   - Click "Targets" tab
+   - Confirm domains are listed
+
+2. Check Certificate Transparency is enabled:
    ```bash
-   curl -X POST -H 'Content-type: application/json' \
-     --data '{"text":"Test message"}' \
-     YOUR_WEBHOOK_URL
+   grep "certstream:" /home/crtmon/.config/crtmon/provider.yaml
    ```
 
-3. Check logs:
+3. View live logs:
    ```bash
    sudo journalctl -u crtmon -f
    ```
 
-### Certificates not being collected
-
-1. Verify certstream is enabled:
-   ```bash
-   grep -A2 "certstream:" /home/crtmon/.config/crtmon/provider.yaml
-   ```
-
-2. Check target domains are in config:
-   ```bash
-   grep "targets:" -A10 /home/crtmon/.config/crtmon/provider.yaml
-   ```
-
-3. Verify admin panel shows targets:
-   - Open http://your-vps-ip:8080
-   - Check "Targets" section
-
-4. Restart service:
+4. Restart service if needed:
    ```bash
    sudo systemctl restart crtmon
    ```
